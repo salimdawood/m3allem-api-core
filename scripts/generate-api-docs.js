@@ -313,7 +313,7 @@ export function buildMarkdown() {
 export function buildPostmanEnvironments() {
   return [
     ['M3allem_Local.postman_environment.json', 'f0570d15-714b-46f0-adc2-7f8ea12393eb', 'M3allem Local', 'http://localhost:3001'],
-    ['M3allem_API_Server.postman_environment.json', '37d09aa9-3bc8-493a-920f-27ce3e6f2573', 'M3allem API Server — set rootUrl', 'https://replace-with-your-api-host.example.invalid']
+    ['M3allem_API_Server.postman_environment.json', '37d09aa9-3bc8-493a-920f-27ce3e6f2573', 'M3allem Render Test API', 'https://m3allem-api-core.onrender.com']
   ].map(([filename, id, name, rootUrl]) => ({ filename, environment: {
     id, name, values: [
       { key: 'rootUrl', value: rootUrl, enabled: true }, { key: 'baseUrl', value: '{{rootUrl}}/v1', enabled: true }

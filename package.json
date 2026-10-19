@@ -25,7 +25,8 @@
     "docs:generate": "node scripts/generate-api-docs.js",
     "docs:check": "node scripts/check-api-contract.js",
     "postman:generate": "node scripts/generate-postman-collection.js",
-    "postman:login": "node scripts/prepare-postman-environment.js"
+    "postman:login": "node scripts/prepare-postman-environment.js",
+    "handoff:android": "node scripts/build-android-handoff.js"
   },
   "engines": {
     "node": "24.x"

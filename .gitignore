@@ -9,3 +9,4 @@ coverage/
 .neon
 .archive/
 postman/*.private.postman_environment.json
+handoff/

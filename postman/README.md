@@ -4,7 +4,7 @@ Generate with `npm run docs:generate` (or the existing `npm run postman:generate
 
 ## Setup
 
-1. Import `M3allem_API.postman_collection.json` and `M3allem_Local.postman_environment.json`. The current local API is `http://localhost:3001`; `baseUrl` derives from `rootUrl` as `{{rootUrl}}/v1`. For a hosted or teammate-accessible API, import `M3allem_API_Server.postman_environment.json` and replace its placeholder `rootUrl` with the actual API origin, without `/v1` or a trailing slash. No hosted API URL exists yet. Neon database/storage URLs are not API URLs.
+1. Import `M3allem_API.postman_collection.json` and select an environment. `M3allem_API_Server.postman_environment.json` points to the deployed test API, `https://m3allem-api-core.onrender.com`. The local environment points to `http://localhost:3001`. `baseUrl` derives from `rootUrl` as `{{rootUrl}}/v1`. Use an API origin without `/v1` or a trailing slash for `rootUrl`. Neon database/storage URLs are not API URLs.
 2. The default collection phones match the current synthetic seed: customer `+96170000001`, worker `+96170000002`, admin `+96170000003`. The single Neon branch is named `production`, but the API deliberately runs in **staging/mock mode**, with OTP `111111` and push off. There are no pre-issued tokens in these shared files. For fresh accounts, change the phone variables. A worker account can also hire; customer/worker/admin names identify separate example actors.
 3. Use an account setup login folder: send OTP, then verify that exact challenge. Successful responses save the account's access/refresh tokens and numeric identity. `otpCode=111111` applies only when it matches your configured staging fixed code. Production sends a real OTP; set its exact six digits.
 4. A NEW_USER response saves `registrationToken`. Run exactly one registration alternative using that proof. Customer registration saves customer tokens; the alternative saves worker tokens. Use a fresh phone/proof for the second account. Registration accepts no role.
@@ -35,7 +35,7 @@ Do not run the entire collection with Collection Runner. Registration alternativ
 | Postman desktop on the backend PC | `http://localhost:3001` |
 | Standard Android Studio emulator on that PC | `http://10.0.2.2:3001` |
 | Physical phone or a teammate's computer | `http://<backend-PC-LAN-IP>:3001`, on a reachable network with the port allowed |
-| Hosted API | Actual deployed HTTPS origin, once available |
+| Hosted test API | `https://m3allem-api-core.onrender.com` |
 
 Append `/v1` for app endpoints; root health endpoints omit it. Android `localhost` refers to the device itself. Local HTTP requires an appropriate Android debug network-security configuration; use HTTPS for a hosted release.
 
