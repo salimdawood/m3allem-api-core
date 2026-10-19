@@ -1,0 +1,760 @@
+// SQL owns migrations, checks, triggers, partial indexes and generated columns.
+// Introspected from the finalized schema on an isolated PostgreSQL 17 database.
+// Do not use Prisma db push or migrate to recreate this database.
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                                                   BigInt                   @id @default(autoincrement())
+  phoneNumber                                          String                   @unique @map("phone_number") @db.VarChar(16)
+  fullName                                             String                   @map("full_name") @db.VarChar(120)
+  searchText                                           Unsupported("tsvector")? @default(dbgenerated("to_tsvector('simple'::regconfig, (full_name)::text)")) @map("search_text")
+  profileImageUploadId                                 BigInt?                  @map("profile_image_upload_id")
+  nationality                                          String?                  @db.Char(2)
+  recoveryEmail                                        String?                  @unique @map("recovery_email") @db.Citext
+  latitude                                             Float?
+  longitude                                            Float?
+  address                                              String?                  @db.VarChar(255)
+  isAdmin                                              Boolean                  @default(false) @map("is_admin")
+  accountStatus                                        AccountStatus            @default(ACTIVE) @map("account_status")
+  suspendedAt                                          DateTime?                @map("suspended_at") @db.Timestamptz(6)
+  suspensionReason                                     String?                  @map("suspension_reason") @db.VarChar(500)
+  createdAt                                            DateTime                 @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                                            DateTime                 @default(now()) @map("updated_at") @db.Timestamptz(6)
+  deletedAt                                            DateTime?                @map("deleted_at") @db.Timestamptz(6)
+  authSessions                                         AuthSession[]
+  contactHistory                                       ContactHistory[]
+  conversationsConversationsCustomerIdTousers          Conversation[]           @relation("conversations_customer_idTousers")
+  conversationsConversationsWorkerUserIdTousers        Conversation[]           @relation("conversations_worker_user_idTousers")
+  devices                                              Device[]
+  favorites                                            Favorite[]
+  fileUploadsFileUploadsOwnerUserIdTousers             FileUpload[]             @relation("file_uploads_owner_user_idTousers")
+  identityDocuments                                    IdentityDocument[]
+  messages                                             Message[]
+  notifications                                        Notification[]
+  otpFlows                                             OtpFlow[]
+  reviews                                              Review[]
+  scheduledReminders                                   ScheduledReminder[]
+  serviceRequestEvents                                 ServiceRequestEvent[]
+  serviceRequestsServiceRequestsCustomerIdTousers      ServiceRequest[]         @relation("service_requests_customer_idTousers")
+  serviceRequestsServiceRequestsStatusChangedByTousers ServiceRequest[]         @relation("service_requests_status_changed_byTousers")
+  serviceRequestsServiceRequestsWorkerUserIdTousers    ServiceRequest[]         @relation("service_requests_worker_user_idTousers")
+  userSettings                                         UserSettings?
+  fileUploadsUsersIdProfileImageUploadIdTofileUploads  FileUpload?              @relation("users_id_profile_image_upload_idTofile_uploads", fields: [id, profileImageUploadId], references: [ownerUserId, id], onDelete: NoAction, onUpdate: NoAction, map: "user_profile_image_owner_fk")
+  workerProfiles                                       WorkerProfile?
+
+  @@index([accountStatus, id], map: "users_account_status_idx")
+  @@index([fullName(ops: raw("ginTrgmOps"))], map: "users_name_trgm", type: Gin)
+  @@index([searchText], map: "users_search_idx", type: Gin)
+  @@map("users")
+}
+
+model RefreshToken {
+  deletedAt          DateTime?      @map("deleted_at") @db.Timestamptz(6)
+  id                 BigInt         @id @default(autoincrement())
+  sessionId          BigInt         @map("session_id")
+  tokenHash          Bytes          @unique @map("token_hash")
+  generation         BigInt
+  parentTokenId      BigInt?        @unique @map("parent_token_id")
+  expiresAt          DateTime       @map("expires_at") @db.Timestamptz(6)
+  usedAt             DateTime?      @map("used_at") @db.Timestamptz(6)
+  revokedAt          DateTime?      @map("revoked_at") @db.Timestamptz(6)
+  createdAt          DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  authSessions       AuthSession    @relation(fields: [sessionId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  refreshTokens      RefreshToken?  @relation("refresh_tokensTorefresh_tokens", fields: [sessionId, parentTokenId], references: [sessionId, id], onDelete: NoAction, onUpdate: NoAction)
+  otherRefreshTokens RefreshToken[] @relation("refresh_tokensTorefresh_tokens")
+
+  @@unique([sessionId, generation])
+  @@unique([sessionId, id])
+  @@index([expiresAt], map: "refresh_tokens_expiry_idx")
+  @@map("refresh_tokens")
+}
+
+model Device {
+  deletedAt              DateTime?              @map("deleted_at") @db.Timestamptz(6)
+  id                     BigInt                 @id @default(autoincrement())
+  fcmToken               String                 @map("fcm_token")
+  userId                 BigInt                 @map("user_id")
+  platform               String                 @default("android") @db.VarChar(16)
+  locale                 String?                @db.VarChar(8)
+  appVersion             String?                @map("app_version") @db.VarChar(32)
+  lastSeenAt             DateTime               @default(now()) @map("last_seen_at") @db.Timestamptz(6)
+  users                  User                   @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  notificationDeliveries NotificationDelivery[]
+
+  @@index([userId], map: "devices_user_idx")
+  @@map("devices")
+}
+
+model Category {
+  deletedAt            DateTime?             @map("deleted_at") @db.Timestamptz(6)
+  id                   BigInt                @id @default(autoincrement())
+  slug                 String                @unique @db.VarChar(40)
+  iconKey              String                @map("icon_key") @db.VarChar(40)
+  sortOrder            Int                   @default(0) @map("sort_order") @db.SmallInt
+  isActive             Boolean               @default(true) @map("is_active")
+  categoryTranslations CategoryTranslation[]
+  promoBanners         PromoBanner[]
+  workerProfiles       WorkerProfile[]
+  workerTypes          WorkerType[]
+
+  @@map("categories")
+}
+
+model WorkerType {
+  deletedAt              DateTime?               @map("deleted_at") @db.Timestamptz(6)
+  id                     BigInt                  @id @default(autoincrement())
+  slug                   String                  @unique @db.VarChar(40)
+  categoryId             BigInt                  @map("category_id")
+  iconKey                String                  @map("icon_key") @db.VarChar(40)
+  localName              String?                 @map("local_name") @db.VarChar(80)
+  keywords               String[]                @default([])
+  sortOrder              Int                     @default(0) @map("sort_order") @db.SmallInt
+  isActive               Boolean                 @default(true) @map("is_active")
+  workerTypeTranslations WorkerTypeTranslation[]
+  categories             Category                @relation(fields: [categoryId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  workerWorkerTypes      WorkerWorkerType[]
+
+  @@unique([id, categoryId], map: "worker_types_id_category_unique")
+  @@index([categoryId], map: "worker_types_category_idx")
+  @@map("worker_types")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model AuthSession {
+  deletedAt        DateTime?      @map("deleted_at") @db.Timestamptz(6)
+  id               BigInt         @id @default(autoincrement())
+  userId           BigInt         @map("user_id")
+  expiresAt        DateTime       @map("expires_at") @db.Timestamptz(6)
+  revokedAt        DateTime?      @map("revoked_at") @db.Timestamptz(6)
+  revocationReason String?        @map("revocation_reason") @db.VarChar(64)
+  userAgent        String?        @map("user_agent")
+  createdAt        DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  lastSeenAt       DateTime       @default(now()) @map("last_seen_at") @db.Timestamptz(6)
+  users            User           @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  refreshTokens    RefreshToken[]
+
+  @@index([expiresAt], map: "auth_sessions_expiry_idx")
+  @@map("auth_sessions")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model CategoryTranslation {
+  deletedAt   DateTime? @map("deleted_at") @db.Timestamptz(6)
+  categoryId  BigInt    @map("category_id")
+  language    String    @db.VarChar(2)
+  name        String    @db.VarChar(80)
+  description String    @db.VarChar(255)
+  categories  Category  @relation(fields: [categoryId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([categoryId, language])
+  @@map("category_translations")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model ContactHistory {
+  deletedAt       DateTime?       @map("deleted_at") @db.Timestamptz(6)
+  id              BigInt          @id @default(autoincrement())
+  customerId      BigInt          @map("customer_id")
+  workerId        BigInt          @map("worker_id")
+  interactionType InteractionType @map("interaction_type")
+  conversationId  BigInt?         @unique @map("conversation_id")
+  requestId       BigInt?         @unique @map("request_id")
+  createdAt       DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  users           User            @relation(fields: [customerId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  workerProfiles  WorkerProfile   @relation(fields: [workerId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  conversations   Conversation?   @relation(fields: [conversationId, workerId, customerId], references: [id, workerId, customerId], onDelete: NoAction, onUpdate: NoAction, map: "history_conversation_participants_fk")
+  serviceRequests ServiceRequest? @relation(fields: [requestId, workerId, customerId], references: [id, workerId, customerId], onDelete: NoAction, onUpdate: NoAction, map: "history_request_participants_fk")
+
+  @@index([customerId, createdAt(sort: Desc), id(sort: Desc)], map: "contact_history_customer_idx")
+  @@index([workerId], map: "contact_history_worker_idx")
+  @@map("contact_history")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model Conversation {
+  deletedAt                             DateTime?        @map("deleted_at") @db.Timestamptz(6)
+  id                                    BigInt           @id @default(autoincrement())
+  customerId                            BigInt           @map("customer_id")
+  workerId                              BigInt           @map("worker_id")
+  workerUserId                          BigInt           @map("worker_user_id")
+  createdAt                             DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                             DateTime         @default(now()) @map("updated_at") @db.Timestamptz(6)
+  contactHistory                        ContactHistory[]
+  workerProfiles                        WorkerProfile    @relation(fields: [workerId, workerUserId], references: [id, userId], onDelete: NoAction, onUpdate: NoAction, map: "conversation_worker_owner_fk")
+  usersConversationsCustomerIdTousers   User             @relation("conversations_customer_idTousers", fields: [customerId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  usersConversationsWorkerUserIdTousers User             @relation("conversations_worker_user_idTousers", fields: [workerUserId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  messages                              Message[]
+  notifications                         Notification[]
+
+  @@unique([id, workerId, customerId], map: "conversation_id_participants_unique")
+  @@unique([customerId, workerId])
+  @@index([customerId, updatedAt(sort: Desc), id(sort: Desc)], map: "conversations_customer_idx")
+  @@index([workerId, updatedAt(sort: Desc), id(sort: Desc)], map: "conversations_worker_idx")
+  @@index([workerUserId, updatedAt(sort: Desc), id(sort: Desc)], map: "conversations_worker_user_idx")
+  @@map("conversations")
+}
+
+model Favorite {
+  deletedAt      DateTime?     @map("deleted_at") @db.Timestamptz(6)
+  userId         BigInt        @map("user_id")
+  workerId       BigInt        @map("worker_id")
+  createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  users          User          @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  workerProfiles WorkerProfile @relation(fields: [workerId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([userId, workerId])
+  @@index([userId, createdAt(sort: Desc), workerId], map: "favorites_user_recent_idx")
+  @@index([workerId], map: "favorites_worker_idx")
+  @@map("favorites")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model has constraints using non-default deferring rules and requires additional setup for migrations. Visit https://pris.ly/d/constraint-deferring for more info.
+model FileUpload {
+  deletedAt                                     DateTime?         @map("deleted_at") @db.Timestamptz(6)
+  id                                            BigInt            @id @default(autoincrement())
+  ownerUserId                                   BigInt            @map("owner_user_id")
+  purpose                                       UploadPurpose
+  status                                        UploadStatus      @default(PENDING)
+  bucketName                                    String            @map("bucket_name")
+  objectKey                                     String            @map("object_key")
+  contentType                                   String?           @map("content_type") @db.VarChar(127)
+  sizeBytes                                     BigInt?           @map("size_bytes")
+  sha256                                        Bytes?
+  uploadedAt                                    DateTime?         @map("uploaded_at") @db.Timestamptz(6)
+  uploadExpiresAt                               DateTime          @map("upload_expires_at") @db.Timestamptz(6)
+  cleanupAfter                                  DateTime?         @map("cleanup_after") @db.Timestamptz(6)
+  deleteRequestedAt                             DateTime?         @map("delete_requested_at") @db.Timestamptz(6)
+  storageDeletedAt                              DateTime?         @map("storage_deleted_at") @db.Timestamptz(6)
+  failureCode                                   String?           @map("failure_code") @db.VarChar(120)
+  createdAt                                     DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                                     DateTime          @default(now()) @map("updated_at") @db.Timestamptz(6)
+  usersFileUploadsOwnerUserIdTousers            User              @relation("file_uploads_owner_user_idTousers", fields: [ownerUserId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  identityDocuments                             IdentityDocument?
+  usersUsersIdProfileImageUploadIdTofileUploads User[]            @relation("users_id_profile_image_upload_idTofile_uploads")
+
+  @@unique([bucketName, objectKey])
+  @@unique([ownerUserId, id])
+  @@index([ownerUserId, id], map: "file_uploads_owner_idx")
+  @@map("file_uploads")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model IdentityDocument {
+  deletedAt                                                                  DateTime?            @map("deleted_at") @db.Timestamptz(6)
+  id                                                                         BigInt               @id @default(autoincrement())
+  workerId                                                                   BigInt               @map("worker_id")
+  submissionNumber                                                           BigInt               @map("submission_number")
+  type                                                                       IdentityDocumentType
+  uploadId                                                                   BigInt               @unique @map("upload_id")
+  status                                                                     DocumentReviewStatus @default(PENDING)
+  submittedAt                                                                DateTime             @default(now()) @map("submitted_at") @db.Timestamptz(6)
+  reviewedAt                                                                 DateTime?            @map("reviewed_at") @db.Timestamptz(6)
+  reviewedBy                                                                 BigInt?              @map("reviewed_by")
+  rejectionReason                                                            String?              @map("rejection_reason") @db.VarChar(500)
+  users                                                                      User?                @relation(fields: [reviewedBy], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  fileUploads                                                                FileUpload           @relation(fields: [uploadId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  workerProfilesIdentityDocumentsWorkerIdToworkerProfiles                    WorkerProfile        @relation("identity_documents_worker_idToworker_profiles", fields: [workerId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  workerProfilesWorkerProfilesIdCurrentIdentityDocumentIdToidentityDocuments WorkerProfile[]      @relation("worker_profiles_id_current_identity_document_idToidentity_documents")
+
+  @@unique([workerId, submissionNumber], map: "identity_document_submission_unique")
+  @@unique([workerId, id], map: "identity_document_worker_id_unique")
+  @@map("identity_documents")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model Message {
+  deletedAt      DateTime?    @map("deleted_at") @db.Timestamptz(6)
+  id             BigInt       @id @default(autoincrement())
+  conversationId BigInt       @map("conversation_id")
+  senderId       BigInt       @map("sender_id")
+  messageNumber  BigInt       @map("message_number")
+  text           String       @db.VarChar(2000)
+  sentAt         DateTime     @default(now()) @map("sent_at") @db.Timestamptz(6)
+  conversations  Conversation @relation(fields: [conversationId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users          User         @relation(fields: [senderId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([conversationId, messageNumber])
+  @@index([senderId], map: "messages_sender_idx")
+  @@map("messages")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model NotificationDelivery {
+  deletedAt         DateTime?          @map("deleted_at") @db.Timestamptz(6)
+  id                BigInt             @id @default(autoincrement())
+  notificationId    BigInt             @map("notification_id")
+  recipientUserId   BigInt             @map("recipient_user_id")
+  deviceId          BigInt?            @map("device_id")
+  deviceToken       String             @map("device_token")
+  status            PushDeliveryStatus @default(PENDING)
+  attempts          Int                @default(0)
+  maxAttempts       Int                @default(5) @map("max_attempts") @db.SmallInt
+  nextAttemptAt     DateTime?          @default(now()) @map("next_attempt_at") @db.Timestamptz(6)
+  lastAttemptAt     DateTime?          @map("last_attempt_at") @db.Timestamptz(6)
+  leaseExpiresAt    DateTime?          @map("lease_expires_at") @db.Timestamptz(6)
+  claimVersion      BigInt             @default(0) @map("claim_version")
+  sentAt            DateTime?          @map("sent_at") @db.Timestamptz(6)
+  providerMessageId String?            @map("provider_message_id")
+  lastErrorCode     String?            @map("last_error_code") @db.VarChar(120)
+  createdAt         DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime           @default(now()) @map("updated_at") @db.Timestamptz(6)
+  devices           Device?            @relation(fields: [deviceId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  notifications     Notification       @relation(fields: [notificationId, recipientUserId], references: [id, recipientUserId], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([notificationId, deviceToken])
+  @@index([deviceId], map: "notification_deliveries_device_idx")
+  @@index([recipientUserId], map: "notification_deliveries_recipient_idx")
+  @@map("notification_deliveries")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model Notification {
+  deletedAt                                                         DateTime?              @map("deleted_at") @db.Timestamptz(6)
+  id                                                                BigInt                 @id @default(autoincrement())
+  recipientUserId                                                   BigInt                 @map("recipient_user_id")
+  type                                                              NotificationType
+  title                                                             String                 @db.VarChar(160)
+  body                                                              String                 @db.VarChar(500)
+  requestId                                                         BigInt?                @map("request_id")
+  conversationId                                                    BigInt?                @map("conversation_id")
+  workerId                                                          BigInt?                @map("worker_id")
+  reminderId                                                        BigInt?                @unique @map("reminder_id")
+  readAt                                                            DateTime?              @map("read_at") @db.Timestamptz(6)
+  createdAt                                                         DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
+  notificationDeliveries                                            NotificationDelivery[]
+  conversations                                                     Conversation?          @relation(fields: [conversationId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users                                                             User                   @relation(fields: [recipientUserId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  scheduledRemindersNotificationsReminderIdToscheduledReminders     ScheduledReminder?     @relation("notifications_reminder_idToscheduled_reminders", fields: [reminderId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  serviceRequests                                                   ServiceRequest?        @relation(fields: [requestId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  workerProfiles                                                    WorkerProfile?         @relation(fields: [workerId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  scheduledRemindersScheduledRemindersNotificationIdTonotifications ScheduledReminder?     @relation("scheduled_reminders_notification_idTonotifications")
+
+  @@unique([id, recipientUserId])
+  @@index([recipientUserId, createdAt(sort: Desc), id(sort: Desc)], map: "notifications_recipient_idx")
+  @@map("notifications")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model OtpChallenge {
+  deletedAt     DateTime? @map("deleted_at") @db.Timestamptz(6)
+  id            BigInt    @id @default(autoincrement())
+  flowId        BigInt    @map("flow_id")
+  issuanceNonce Bytes     @unique @map("issuance_nonce")
+  codeHash      Bytes     @map("code_hash")
+  attempts      Int       @default(0) @db.SmallInt
+  maxAttempts   Int       @default(5) @map("max_attempts") @db.SmallInt
+  expiresAt     DateTime  @map("expires_at") @db.Timestamptz(6)
+  resendAfter   DateTime  @map("resend_after") @db.Timestamptz(6)
+  consumedAt    DateTime? @map("consumed_at") @db.Timestamptz(6)
+  supersededAt  DateTime? @map("superseded_at") @db.Timestamptz(6)
+  invalidatedAt DateTime? @map("invalidated_at") @db.Timestamptz(6)
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  otpFlows      OtpFlow   @relation(fields: [flowId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([expiresAt], map: "otp_challenges_expiry_idx")
+  @@index([flowId, id(sort: Desc)], map: "otp_challenges_flow_history_idx")
+  @@map("otp_challenges")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model OtpFlow {
+  deletedAt     DateTime?      @map("deleted_at") @db.Timestamptz(6)
+  id            BigInt         @id @default(autoincrement())
+  purpose       OtpPurpose
+  destination   String         @db.VarChar(255)
+  userId        BigInt?        @map("user_id")
+  lastIssuedAt  DateTime?      @map("last_issued_at") @db.Timestamptz(6)
+  createdAt     DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  otpChallenges OtpChallenge[]
+  users         User?          @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@map("otp_flows")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model PromoBanner {
+  deletedAt  DateTime? @map("deleted_at") @db.Timestamptz(6)
+  id         BigInt    @id @default(autoincrement())
+  title      String    @db.VarChar(120)
+  subtitle   String    @db.VarChar(255)
+  language   String    @default("en") @db.VarChar(2)
+  imageUrl   String?   @map("image_url")
+  iconKey    String    @map("icon_key") @db.VarChar(40)
+  categoryId BigInt?   @map("category_id")
+  sortOrder  Int       @default(0) @map("sort_order") @db.SmallInt
+  startsAt   DateTime? @map("starts_at") @db.Timestamptz(6)
+  endsAt     DateTime? @map("ends_at") @db.Timestamptz(6)
+  isActive   Boolean   @default(true) @map("is_active")
+  categories Category? @relation(fields: [categoryId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@map("promo_banners")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model Review {
+  deletedAt       DateTime?      @map("deleted_at") @db.Timestamptz(6)
+  id              BigInt         @id @default(autoincrement())
+  workerId        BigInt         @map("worker_id")
+  userId          BigInt         @map("user_id")
+  requestId       BigInt         @map("request_id")
+  rating          Int            @db.SmallInt
+  comment         String?        @db.VarChar(500)
+  createdAt       DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime       @default(now()) @map("updated_at") @db.Timestamptz(6)
+  serviceRequests ServiceRequest @relation(fields: [requestId, workerId, userId], references: [id, workerId, customerId], onDelete: NoAction, onUpdate: NoAction, map: "review_request_participants_fk")
+  users           User           @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  workerProfiles  WorkerProfile  @relation(fields: [workerId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([requestId], map: "reviews_request_idx")
+  @@index([userId, createdAt(sort: Desc), id(sort: Desc)], map: "reviews_user_idx")
+  @@index([workerId, createdAt(sort: Desc), id(sort: Desc)], map: "reviews_worker_idx")
+  @@map("reviews")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model has constraints using non-default deferring rules and requires additional setup for migrations. Visit https://pris.ly/d/constraint-deferring for more info.
+model ScheduledReminder {
+  deletedAt                                                    DateTime?      @map("deleted_at") @db.Timestamptz(6)
+  id                                                           BigInt         @id @default(autoincrement())
+  requestId                                                    BigInt         @map("request_id")
+  recipientUserId                                              BigInt         @map("recipient_user_id")
+  triggerAt                                                    DateTime       @map("trigger_at") @db.Timestamptz(6)
+  leadMinutes                                                  Int            @map("lead_minutes") @db.SmallInt
+  notificationId                                               BigInt?        @unique @map("notification_id")
+  cancelledAt                                                  DateTime?      @map("cancelled_at") @db.Timestamptz(6)
+  createdAt                                                    DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  notificationsNotificationsReminderIdToscheduledReminders     Notification?  @relation("notifications_reminder_idToscheduled_reminders")
+  notificationsScheduledRemindersNotificationIdTonotifications Notification?  @relation("scheduled_reminders_notification_idTonotifications", fields: [notificationId], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "reminder_notification_fk")
+  users                                                        User           @relation(fields: [recipientUserId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  serviceRequests                                              ServiceRequest @relation(fields: [requestId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([requestId, recipientUserId])
+  @@index([recipientUserId], map: "scheduled_reminders_recipient_idx")
+  @@map("scheduled_reminders")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model ServiceRequestEvent {
+  deletedAt       DateTime?             @map("deleted_at") @db.Timestamptz(6)
+  id              BigInt                @id @default(autoincrement())
+  requestId       BigInt                @map("request_id")
+  version         BigInt
+  fromStatus      ServiceRequestStatus? @map("from_status")
+  toStatus        ServiceRequestStatus  @map("to_status")
+  actorId         BigInt                @map("actor_id")
+  reason          String?               @db.VarChar(500)
+  occurredAt      DateTime              @map("occurred_at") @db.Timestamptz(6)
+  users           User                  @relation(fields: [actorId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  serviceRequests ServiceRequest        @relation(fields: [requestId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([requestId, version])
+  @@index([actorId], map: "service_request_events_actor_idx")
+  @@map("service_request_events")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model ServiceRequest {
+  deletedAt                                  DateTime?             @map("deleted_at") @db.Timestamptz(6)
+  id                                         BigInt                @id @default(autoincrement())
+  workerId                                   BigInt                @map("worker_id")
+  workerUserId                               BigInt                @map("worker_user_id")
+  customerId                                 BigInt                @map("customer_id")
+  details                                    String?               @db.VarChar(1000)
+  scheduledAt                                DateTime?             @map("scheduled_at") @db.Timestamptz(6)
+  status                                     ServiceRequestStatus  @default(PENDING)
+  statusChangedBy                            BigInt                @map("status_changed_by")
+  statusReason                               String?               @map("status_reason") @db.VarChar(500)
+  statusChangedAt                            DateTime              @default(now()) @map("status_changed_at") @db.Timestamptz(6)
+  version                                    BigInt                @default(1)
+  createdAt                                  DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                                  DateTime              @default(now()) @map("updated_at") @db.Timestamptz(6)
+  contactHistory                             ContactHistory[]
+  notifications                              Notification[]
+  reviews                                    Review[]
+  scheduledReminders                         ScheduledReminder[]
+  serviceRequestEvents                       ServiceRequestEvent[]
+  workerProfiles                             WorkerProfile         @relation(fields: [workerId, workerUserId], references: [id, userId], onDelete: NoAction, onUpdate: NoAction, map: "request_worker_owner_fk")
+  usersServiceRequestsCustomerIdTousers      User                  @relation("service_requests_customer_idTousers", fields: [customerId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  usersServiceRequestsStatusChangedByTousers User                  @relation("service_requests_status_changed_byTousers", fields: [statusChangedBy], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  usersServiceRequestsWorkerUserIdTousers    User                  @relation("service_requests_worker_user_idTousers", fields: [workerUserId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([id, workerId, customerId], map: "request_id_participants_unique")
+  @@index([statusChangedBy], map: "service_requests_actor_idx")
+  @@index([customerId, createdAt(sort: Desc), id(sort: Desc)], map: "service_requests_customer_idx")
+  @@index([workerId, createdAt(sort: Desc), id(sort: Desc)], map: "service_requests_worker_idx")
+  @@index([workerUserId, status, createdAt(sort: Desc), id(sort: Desc)], map: "service_requests_worker_user_idx")
+  @@map("service_requests")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model UserSettings {
+  deletedAt            DateTime? @map("deleted_at") @db.Timestamptz(6)
+  userId               BigInt    @id @map("user_id")
+  notificationsEnabled Boolean   @default(true) @map("notifications_enabled")
+  reminderLeadMinutes  Int       @default(60) @map("reminder_lead_minutes") @db.SmallInt
+  language             String    @default("en") @db.VarChar(2)
+  updatedAt            DateTime  @default(now()) @map("updated_at") @db.Timestamptz(6)
+  users                User      @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@map("user_settings")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model WorkerDiscount {
+  deletedAt      DateTime?     @map("deleted_at") @db.Timestamptz(6)
+  id             BigInt        @id @default(autoincrement())
+  workerId       BigInt        @map("worker_id")
+  type           DiscountType
+  value          Decimal       @db.Decimal(14, 2)
+  currency       String?       @db.Char(3)
+  unit           PriceUnit?
+  title          String?       @db.VarChar(80)
+  expiresAt      DateTime?     @map("expires_at") @db.Timestamptz(6)
+  createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime      @default(now()) @map("updated_at") @db.Timestamptz(6)
+  workerProfiles WorkerProfile @relation(fields: [workerId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@map("worker_discounts")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model has constraints using non-default deferring rules and requires additional setup for migrations. Visit https://pris.ly/d/constraint-deferring for more info.
+model WorkerProfile {
+  deletedAt                                                                     DateTime?                @map("deleted_at") @db.Timestamptz(6)
+  id                                                                            BigInt                   @id @default(autoincrement())
+  userId                                                                        BigInt                   @unique @map("user_id")
+  publicPhoneNumber                                                             String                   @map("public_phone_number") @db.VarChar(16)
+  whatsappNumber                                                                String?                  @map("whatsapp_number") @db.VarChar(16)
+  categoryId                                                                    BigInt                   @map("category_id")
+  description                                                                   String                   @db.VarChar(1000)
+  experienceYears                                                               Int                      @default(0) @map("experience_years") @db.SmallInt
+  startingPriceAmount                                                           Decimal?                 @map("starting_price_amount") @db.Decimal(14, 2)
+  startingPriceUnit                                                             PriceUnit?               @map("starting_price_unit")
+  startingPriceCurrency                                                         String?                  @map("starting_price_currency") @db.Char(3)
+  latitude                                                                      Float
+  longitude                                                                     Float
+  address                                                                       String?                  @db.VarChar(255)
+  timeZone                                                                      String                   @default("Asia/Beirut") @map("time_zone")
+  rating                                                                        Decimal                  @default(0) @db.Decimal(2, 1)
+  ratingCount                                                                   BigInt                   @default(0) @map("rating_count")
+  currentIdentityDocumentId                                                     BigInt?                  @map("current_identity_document_id")
+  isAvailable                                                                   Boolean                  @default(true) @map("is_available")
+  isListed                                                                      Boolean                  @default(true) @map("is_listed")
+  joinedAt                                                                      DateTime                 @default(now()) @map("joined_at") @db.Timestamptz(6)
+  updatedAt                                                                     DateTime                 @default(now()) @map("updated_at") @db.Timestamptz(6)
+  searchText                                                                    Unsupported("tsvector")? @default(dbgenerated("to_tsvector('simple'::regconfig, (description)::text)")) @map("search_text")
+  contactHistory                                                                ContactHistory[]
+  conversations                                                                 Conversation[]
+  favorites                                                                     Favorite[]
+  identityDocumentsIdentityDocumentsWorkerIdToworkerProfiles                    IdentityDocument[]       @relation("identity_documents_worker_idToworker_profiles")
+  notifications                                                                 Notification[]
+  reviews                                                                       Review[]
+  serviceRequests                                                               ServiceRequest[]
+  workerDiscounts                                                               WorkerDiscount[]
+  identityDocumentsWorkerProfilesIdCurrentIdentityDocumentIdToidentityDocuments IdentityDocument?        @relation("worker_profiles_id_current_identity_document_idToidentity_documents", fields: [id, currentIdentityDocumentId], references: [workerId, id], onDelete: NoAction, onUpdate: NoAction, map: "worker_current_identity_document_fk")
+  categories                                                                    Category                 @relation(fields: [categoryId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  users                                                                         User                     @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  workerServices                                                                WorkerService[]
+  workerWorkerTypes                                                             WorkerWorkerType[]
+  workerWorkingHours                                                            WorkerWorkingHours[]
+
+  @@unique([id, categoryId], map: "worker_profiles_id_category_unique")
+  @@unique([id, userId], map: "worker_profiles_id_user_unique")
+  @@index([categoryId], map: "worker_profiles_category_idx")
+  @@index([latitude, longitude], map: "worker_profiles_geo_idx")
+  @@index([rating(sort: Desc), id], map: "worker_profiles_rating_idx")
+  @@index([searchText], map: "worker_profiles_search_idx", type: Gin)
+  @@map("worker_profiles")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model WorkerService {
+  deletedAt      DateTime?     @map("deleted_at") @db.Timestamptz(6)
+  id             BigInt        @id @default(autoincrement())
+  workerId       BigInt        @map("worker_id")
+  name           String        @db.VarChar(120)
+  description    String?       @db.VarChar(500)
+  priceAmount    Decimal?      @map("price_amount") @db.Decimal(14, 2)
+  priceUnit      PriceUnit?    @map("price_unit")
+  priceCurrency  String?       @map("price_currency") @db.Char(3)
+  sortOrder      Int           @default(0) @map("sort_order") @db.SmallInt
+  createdAt      DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime      @default(now()) @map("updated_at") @db.Timestamptz(6)
+  workerProfiles WorkerProfile @relation(fields: [workerId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([workerId], map: "worker_services_worker_idx")
+  @@map("worker_services")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model WorkerTypeTranslation {
+  deletedAt    DateTime?  @map("deleted_at") @db.Timestamptz(6)
+  workerTypeId BigInt     @map("worker_type_id")
+  language     String     @db.VarChar(2)
+  name         String     @db.VarChar(80)
+  workerTypes  WorkerType @relation(fields: [workerTypeId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@id([workerTypeId, language])
+  @@map("worker_type_translations")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This table contains exclusion constraints and requires additional setup for migrations. Visit https://pris.ly/d/exclusion-constraints for more info.
+/// This model has constraints using non-default deferring rules and requires additional setup for migrations. Visit https://pris.ly/d/constraint-deferring for more info.
+model WorkerWorkerType {
+  deletedAt      DateTime?     @map("deleted_at") @db.Timestamptz(6)
+  workerId       BigInt        @map("worker_id")
+  workerTypeId   BigInt        @map("worker_type_id")
+  categoryId     BigInt        @map("category_id")
+  position       Int           @db.SmallInt
+  workerTypes    WorkerType    @relation(fields: [workerTypeId, categoryId], references: [id, categoryId], onDelete: NoAction, onUpdate: NoAction, map: "worker_types_catalog_category_fk")
+  workerProfiles WorkerProfile @relation(fields: [workerId, categoryId], references: [id, categoryId], onDelete: NoAction, onUpdate: NoAction, map: "worker_types_profile_category_fk")
+
+  @@id([workerId, workerTypeId])
+  @@index([workerTypeId, categoryId], map: "worker_worker_types_type_idx")
+  @@map("worker_worker_types")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This table contains exclusion constraints and requires additional setup for migrations. Visit https://pris.ly/d/exclusion-constraints for more info.
+model WorkerWorkingHours {
+  deletedAt      DateTime?                      @map("deleted_at") @db.Timestamptz(6)
+  id             BigInt                         @id @default(autoincrement())
+  workerId       BigInt                         @map("worker_id")
+  isoWeekday     Int                            @map("iso_weekday") @db.SmallInt
+  opensAt        DateTime                       @map("opens_at") @db.Time(6)
+  closesAt       DateTime                       @map("closes_at") @db.Time(6)
+  endDayOffset   Int                            @default(0) @map("end_day_offset") @db.SmallInt
+  weeklySpan     Unsupported("int4multirange")? @default(dbgenerated("weekly_working_span(iso_weekday, opens_at, closes_at, end_day_offset)")) @map("weekly_span")
+  createdAt      DateTime                       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime                       @default(now()) @map("updated_at") @db.Timestamptz(6)
+  workerProfiles WorkerProfile                  @relation(fields: [workerId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([workerId, isoWeekday, opensAt], map: "worker_working_hours_schedule_idx")
+  @@map("worker_working_hours")
+}
+
+enum OtpPurpose {
+  LOGIN
+  PHONE_CHANGE
+  RECOVERY_EMAIL
+  ACCOUNT_RECOVERY
+
+  @@map("otp_purpose")
+}
+
+enum VerificationStatus {
+  NOT_SUBMITTED
+  PENDING
+  VERIFIED
+  REJECTED
+
+  @@map("verification_status")
+}
+
+enum AccountStatus {
+  ACTIVE
+  SUSPENDED
+  DELETED
+
+  @@map("account_status")
+}
+
+enum DiscountType {
+  PERCENTAGE
+  FIXED_AMOUNT
+
+  @@map("discount_type")
+}
+
+enum DocumentReviewStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+
+  @@map("document_review_status")
+}
+
+enum IdentityDocumentType {
+  NATIONAL_ID
+  PASSPORT
+  DRIVERS_LICENSE
+
+  @@map("identity_document_type")
+}
+
+enum InteractionType {
+  SERVICE_REQUEST
+  CHAT
+  CALL
+  WHATSAPP
+
+  @@map("interaction_type")
+}
+
+enum NotificationType {
+  SERVICE_REQUEST_RECEIVED
+  SERVICE_REQUEST_SENT
+  SERVICE_REQUEST_UPDATED
+  NEW_MESSAGE
+  NEW_REVIEW
+  VERIFICATION_UPDATE
+  APPOINTMENT_REMINDER
+
+  @@map("notification_type")
+}
+
+enum PriceUnit {
+  PER_HOUR
+  PER_VISIT
+  PER_JOB
+  PER_SESSION
+  PER_DAY
+
+  @@map("price_unit")
+}
+
+enum PushDeliveryStatus {
+  PENDING
+  PROCESSING
+  SENT
+  FAILED
+  CANCELLED
+
+  @@map("push_delivery_status")
+}
+
+enum ServiceRequestStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  COMPLETED
+  CANCELLED
+
+  @@map("service_request_status")
+}
+
+enum UploadPurpose {
+  PROFILE_IMAGE
+  IDENTITY_DOCUMENT
+
+  @@map("upload_purpose")
+}
+
+enum UploadStatus {
+  PENDING
+  READY
+  FAILED
+  DELETING
+  DELETED
+
+  @@map("upload_status")
+}

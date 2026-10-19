@@ -1,0 +1,9 @@
+{
+  "database": "m3allem_schema_test_1792416476774939100",
+  "postgres": "PostgreSQL 17.4 on x86_64-windows, compiled by msvc-19.42.34436, 64-bit",
+  "schema_sha256": "54e4d3c7770e29c094a90f9f50f44c5591e22592acc317bd872f83252f4554c0",
+  "tests_run": 51,
+  "failures": 0,
+  "errors": 0,
+  "successful": true
+}

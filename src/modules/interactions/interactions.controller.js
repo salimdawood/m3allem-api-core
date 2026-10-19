@@ -1,0 +1,25 @@
+import { interactionService as service } from './interactions.service.js';
+export const interactionController = {
+  conversations: (req) => service.conversations(req.user.id, req.validated.query),
+  conversation: (req) => service.conversation(req.validated.params.id, req.user.id),
+  startConversation: (req) => service.startConversation(req.user.id, req.validated.body.workerId),
+  messages: (req) => service.messages(req.validated.params.id, req.user.id, req.validated.query),
+  sendMessage: (req) => service.sendMessage(req.validated.params.id, req.user.id, req.validated.body.text),
+  deleteMessage: (req) => service.deleteMessage(req.validated.params.id, req.validated.params.messageId, req.user.id, true),
+  restoreMessage: (req) => service.deleteMessage(req.validated.params.id, req.validated.params.messageId, req.user.id, false),
+  deleteConversation: (req) => service.deleteConversation(req.validated.params.id, req.user.id, true),
+  restoreConversation: (req) => service.deleteConversation(req.validated.params.id, req.user.id, false),
+  createRequest: async (req) => ({ statusCode: 201, data: await service.createRequest(req.user.id, req.validated.body) }),
+  requests: (req) => service.requests(req.user.id, req.validated.query),
+  request: (req) => service.request(req.validated.params.id, req.user.id),
+  updateRequest: (req) => service.updateRequest(req.validated.params.id, req.user.id, req.validated.body),
+  events: (req) => service.events(req.validated.params.id, req.user.id, req.validated.query),
+  deleteRequest: (req) => service.deleteRequest(req.validated.params.id, req.user.id, true),
+  restoreRequest: (req) => service.deleteRequest(req.validated.params.id, req.user.id, false),
+  reviews: (req) => service.reviews(req.validated.params.id, req.user.id, req.validated.query),
+  addReview: (req) => service.addReview(req.validated.params.id, req.user.id, req.validated.body),
+  myReviews: (req) => service.myReviews(req.user.id, req.validated.query),
+  editReview: (req) => service.editReview(req.validated.params.id, req.user.id, req.validated.body),
+  deleteReview: (req) => service.deleteReview(req.validated.params.id, req.user.id, true),
+  restoreReview: (req) => service.deleteReview(req.validated.params.id, req.user.id, false)
+};

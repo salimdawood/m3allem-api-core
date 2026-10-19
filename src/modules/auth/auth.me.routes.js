@@ -1,0 +1,13 @@
+import { Router } from 'express';
+import { authenticate } from '../../middlewares/auth.js';
+import { validate } from '../../middlewares/validate.js';
+import { tryCatch } from '../../utils/tryCatch.js';
+import { authController as c } from './auth.controller.js';
+import { schemas as s } from './auth.validation.js';
+import { otpRateLimits } from '../../middlewares/rate-limit.js';
+const r=Router();
+r.post('/me/phone/request',authenticate,validate(s.newPhone),...otpRateLimits,tryCatch(c.requestPhone));
+r.post('/me/phone/confirm',authenticate,validate(s.confirmPhone),tryCatch(c.confirmPhone));
+r.post('/me/recovery-email/request',authenticate,validate(s.recovery),...otpRateLimits,tryCatch(c.requestEmail));
+r.post('/me/recovery-email/confirm',authenticate,validate(s.confirmEmail),tryCatch(c.confirmEmail));
+export default r;

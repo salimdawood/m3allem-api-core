@@ -1,0 +1,59 @@
+{
+  "name": "m3allem-api",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test --test-concurrency=1 tests/*.test.js",
+    "test:runtime": "node --test tests/runtime.test.js",
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js",
+    "db:migrate": "node scripts/schema-command.js bootstrap",
+    "db:preflight": "node scripts/schema-command.js preflight",
+    "db:generate": "prisma generate",
+    "db:seed": "node scripts/seed-development.js",
+    "db:seed-storage": "node scripts/import-seed-storage.js",
+    "test:seed-api": "node scripts/smoke-seed-api.js",
+    "test:production-seed-api": "node scripts/smoke-seed-api.js --target production",
+    "test:delivery-providers": "node --test tests/delivery-providers.test.js",
+    "test:auth-account": "node --test --test-concurrency=1 tests/auth-account.test.js",
+    "test:worker-catalog": "node --test --test-concurrency=1 tests/worker-catalog.test.js",
+    "test:upload-verification": "node --test --test-concurrency=1 tests/upload-verification.test.js",
+    "test:interactions": "node --test --test-concurrency=1 tests/interactions.test.js",
+    "test:delivery-workers": "node --test --test-concurrency=1 tests/delivery-workers.test.js",
+    "docs:generate": "node scripts/generate-api-docs.js",
+    "docs:check": "node scripts/check-api-contract.js",
+    "postman:generate": "node scripts/generate-postman-collection.js",
+    "postman:login": "node scripts/prepare-postman-environment.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.828.0",
+    "@aws-sdk/client-sesv2": "^3.828.0",
+    "@aws-sdk/client-sns": "^3.828.0",
+    "@aws-sdk/s3-request-presigner": "^3.828.0",
+    "@prisma/client": "^6.10.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.5.0",
+    "express": "^5.1.0",
+    "express-rate-limit": "^7.5.0",
+    "file-type": "^19.6.0",
+    "firebase-admin": "^13.4.0",
+    "helmet": "^8.1.0",
+    "ioredis": "^5.6.1",
+    "jose": "^6.0.11",
+    "multer": "^2.0.1",
+    "pino": "^9.7.0",
+    "pino-http": "^10.4.0",
+    "rate-limit-redis": "^4.2.0",
+    "sharp": "^0.34.2",
+    "ws": "^8.18.2",
+    "zod": "^3.25.49"
+  },
+  "devDependencies": {
+    "@neon/config": "^1.8.6",
+    "prisma": "^6.10.0"
+  }
+}

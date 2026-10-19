@@ -1,0 +1,21 @@
+import { Router } from 'express';
+import { authenticate } from '../../middlewares/auth.js';
+import { validate } from '../../middlewares/validate.js';
+import { tryCatch } from '../../utils/tryCatch.js';
+import { workerController as c } from './worker.controller.js';
+import { workerSchemas as s } from './worker.validation.js';
+
+const router=Router();
+router.get('/workers/nearby',authenticate,validate(s.nearby),tryCatch(c.nearby));
+router.get('/me/worker',authenticate,tryCatch(c.mine));
+router.get('/workers',authenticate,validate(s.search),tryCatch(c.search));
+router.get('/workers/:id',authenticate,validate(s.id),tryCatch(c.getById));
+router.post('/workers',authenticate,validate(s.draft),tryCatch(c.create));
+router.put('/workers/:id',authenticate,validate(s.update),tryCatch(c.update));
+router.post('/workers/:id/restore',authenticate,validate(s.update),tryCatch(c.restore));
+router.delete('/workers/:id',authenticate,validate(s.id),tryCatch(c.delete));
+router.put('/workers/:id/discount',authenticate,validate(s.discount),tryCatch(c.setDiscount));
+router.delete('/workers/:id/discount',authenticate,validate(s.id),tryCatch(c.removeDiscount));
+router.put('/workers/:id/availability',authenticate,validate(s.availability),tryCatch(c.setAvailability));
+router.put('/workers/:id/listing',authenticate,validate(s.listing),tryCatch(c.setListing));
+export default router;

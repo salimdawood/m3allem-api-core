@@ -1,0 +1,17 @@
+import { Router } from 'express';
+import { authenticate, requireAdmin } from '../../middlewares/auth.js';
+import { validate } from '../../middlewares/validate.js';
+import { tryCatch } from '../../utils/tryCatch.js';
+import { verificationController as c } from './verification.controller.js';
+import { verificationSchemas as s } from './verification.validation.js';
+const r=Router();
+r.use((_req,res,next)=>{res.set('Cache-Control','no-store');next();});
+r.post('/me/worker/identity-documents',authenticate,validate(s.submit),tryCatch(c.submit));
+r.get('/me/worker/identity-documents',authenticate,validate(s.history),tryCatch(c.history));
+r.get('/me/worker/identity-documents/current',authenticate,validate(s.current),tryCatch(c.current));
+r.delete('/me/worker/identity-documents/:documentId',authenticate,validate(s.id),tryCatch(c.delete));
+r.get('/admin/verifications',authenticate,requireAdmin,validate(s.pending),tryCatch(c.pending));
+r.get('/admin/verifications/:documentId/document',authenticate,requireAdmin,validate(s.id),tryCatch(c.document));
+r.post('/admin/verifications/:documentId/approve',authenticate,requireAdmin,validate(s.id),tryCatch(c.approve));
+r.post('/admin/verifications/:documentId/reject',authenticate,requireAdmin,validate(s.reject),tryCatch(c.reject));
+export default r;

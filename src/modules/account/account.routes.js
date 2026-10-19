@@ -1,0 +1,27 @@
+import { Router } from 'express';
+import { authenticate, requireAdmin } from '../../middlewares/auth.js';
+import { validate } from '../../middlewares/validate.js';
+import { tryCatch } from '../../utils/tryCatch.js';
+import { accountController as c } from './account.controller.js';
+import { accountSchemas as s } from './account.validation.js';
+
+const router = Router();
+router.get('/me', authenticate, tryCatch(c.getMe));
+router.patch('/me', authenticate, validate(s.profile), tryCatch(c.updateProfile));
+router.delete('/me', authenticate, validate(s.deleteAccount), tryCatch(c.deleteAccount));
+router.patch('/admin/users/:id/status', authenticate, requireAdmin, validate(s.accountStatus), tryCatch(c.setAccountStatus));
+router.get('/users/:id', authenticate, validate(s.publicUser), tryCatch(c.getPublicUser));
+router.get('/me/settings', authenticate, tryCatch(c.getSettings));
+router.put('/me/settings', authenticate, validate(s.settings), tryCatch(c.setSettings));
+router.get('/me/favorites', authenticate, tryCatch(c.getFavorites));
+router.get('/me/favorites/workers', authenticate, tryCatch(c.favoriteWorkers));
+router.put('/me/favorites/:workerId', authenticate, validate(s.workerParam), tryCatch(c.addFavorite));
+router.delete('/me/favorites/:workerId', authenticate, validate(s.workerParam), tryCatch(c.removeFavorite));
+router.get('/notifications', authenticate, tryCatch(c.notifications));
+router.post('/notifications/read-all', authenticate, tryCatch(c.readAllNotifications));
+router.post('/notifications/:id/read', authenticate, validate(s.notificationParam), tryCatch(c.readNotification));
+router.post('/devices', authenticate, validate(s.device), tryCatch(c.upsertDevice));
+router.delete('/devices/:fcmToken', authenticate, validate(s.fcmParam), tryCatch(c.removeDevice));
+router.get('/me/contact-history', authenticate, tryCatch(c.contactHistory));
+router.post('/me/contact-history', authenticate, validate(s.contact), tryCatch(c.addContactHistory));
+export default router;
