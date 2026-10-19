@@ -22,7 +22,7 @@ Ignored local state: `.env` is the active configuration; `.seed-data/` contains 
 
 ## Run locally
 
-1. Install Node.js 20+ and PostgreSQL 15+ with `citext`, `pg_trgm`, and `btree_gist` available. Validation currently uses PostgreSQL 17.4.
+1. Install Node.js 24 and PostgreSQL 15+ with `citext`, `pg_trgm`, and `btree_gist` available. Validation currently uses PostgreSQL 17.4. See [Render deployment](docs/RENDER.md) for hosted testing with Neon database/storage.
 2. Copy `.env.example` to `.env` and set `DATABASE_URL`, `JWT_ACCESS_SECRET`, and `OTP_HMAC_SECRET`. Staging defaults to fixed OTP `111111`.
 3. Install dependencies with `npm install`.
 4. Run `npm run db:preflight` to inspect the target. For an empty database, `npm run db:migrate` applies the finalized SQL atomically, including catalog seeds. Set `PSQL_BIN` to the psql executable if it is not on PATH.

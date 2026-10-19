@@ -1,0 +1,16 @@
+import { Router } from 'express';
+import { authenticate } from '../../middlewares/auth.js';
+import { uploadFile } from './upload.middleware.js';
+import { tryCatch } from '../../utils/tryCatch.js';
+import { uploadController as c } from './upload.controller.js';
+import { validate } from '../../middlewares/validate.js';
+import { uploadIdSchema, uploadListSchema } from './upload.validation.js';
+const r=Router();
+r.use((_req,res,next)=>{res.set('Cache-Control','no-store');next();});
+r.get('/',authenticate,validate(uploadListSchema),tryCatch(c.list));
+r.post('/profile-image',authenticate,uploadFile(5*1024*1024),tryCatch(c.profileImage));
+r.post('/identity-document',authenticate,uploadFile(10*1024*1024),tryCatch(c.identityDocument));
+r.get('/:id',authenticate,validate(uploadIdSchema),tryCatch(c.get));
+r.delete('/:id',authenticate,validate(uploadIdSchema),tryCatch(c.delete));
+r.post('/:id/restore',authenticate,validate(uploadIdSchema),tryCatch(c.restore));
+export default r;
